@@ -1,0 +1,8 @@
+Debug
+.vs
+*.txt
+*.bak
+*.b
+*.sln
+*.vcxproj
+*.vcxproj.*
