@@ -46,13 +46,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    GeoCoord start("34.0661942", "-118.4507079");
-    GeoCoord end("34.0636533", "-118.4470480");
+    //GeoCoord start("34.0561178", "-118.4798886");
+    //GeoCoord end("34.0636533", "-118.4470480");
 
-    PointToPointRouter ppr(&sm);
-    list<StreetSegment> segs;
-    double miles;
-    ppr.generatePointToPointRoute(start, end, segs, miles);
+    //PointToPointRouter ppr(&sm);
+    //list<StreetSegment> segs;
+    //double miles;
+    //ppr.generatePointToPointRoute(start, end, segs, miles);
 
     GeoCoord depot;
     vector<DeliveryRequest> deliveries;

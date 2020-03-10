@@ -1,12 +1,21 @@
 #include "provided.h"
 #include <list>
 #include <queue>
-#include <map>
+#include <unordered_map>
 #include <set>
 #include <unordered_set>
 #include <functional>
 #include <algorithm>
+#include <map>
 using namespace std;
+
+template <>
+struct hash<GeoCoord> {
+    size_t operator()(GeoCoord a) const {
+        std::hash<std::string> hash;
+        return hash(a.latitudeText + a.longitudeText);
+    }
+};
 
 class PointToPointRouterImpl
 {
@@ -27,14 +36,22 @@ private:
         return distanceEarthMiles(a, goal);
     }
 
-    vector<GeoCoord> reconstructPath(map<GeoCoord, GeoCoord> cameFrom, GeoCoord current) const {
-        vector<GeoCoord> path;
-        path.push_back(current);
-        while (cameFrom.find(current) != cameFrom.end()) {
-            current = cameFrom[current];
-            path.push_back(current);
+    double getWeight(const StreetSegment& a) const {
+        return distanceEarthMiles(a.start, a.end);
+    }
+
+    void reconstructPath(unordered_map<GeoCoord, StreetSegment> cameFrom, GeoCoord end, list<StreetSegment>& path, double& totalDistance) const {
+        totalDistance = 0;
+        path.clear();
+        StreetSegment current = cameFrom[end];
+        path.push_front(current);
+        totalDistance += getWeight(current);
+
+        while (cameFrom.find(current.start) != cameFrom.end()) {
+            current = cameFrom[current.start];
+            path.push_front(current);
+            totalDistance += getWeight(current);
         }
-        return path;
     }
 };
 
@@ -53,58 +70,48 @@ DeliveryResult PointToPointRouterImpl::generatePointToPointRoute(
         list<StreetSegment>& route,
         double& totalDistanceTravelled) const
 {
-    //A* Algorithm!
-    map<GeoCoord, GeoCoord> cameFrom;
+    typedef std::pair<double, GeoCoord> PriorityNode;
+    std::priority_queue<PriorityNode, std::vector<PriorityNode>, std::greater<PriorityNode>> openSet;
+    unordered_set<GeoCoord> closedSet;
+    unordered_map<GeoCoord, StreetSegment> cameFrom;
+    unordered_map<GeoCoord, double> gScore;
 
-    map<GeoCoord, double> gScore;
+    openSet.emplace(0, start);
     gScore[start] = 0;
 
-    map<GeoCoord, double> fScore;
-    fScore[start] = h(start, end); // implement h
+    vector<StreetSegment> neighbors;
+    if (!m_sm->getSegmentsThatStartWith(start, neighbors)) return BAD_COORD;
+    if (!m_sm->getSegmentsThatStartWith(end, neighbors)) return BAD_COORD;
 
-    auto comp = [&fScore = fScore](GeoCoord a, GeoCoord b) {return fScore[a] < fScore[b]; };
-    //priority_queue < GeoCoord, std::vector<GeoCoord>, decltype(comp)> openSet(comp);
-    set<GeoCoord, decltype(comp)> openSet(comp);
-    openSet.insert(start);
-
-    GeoCoord current;
     while (!openSet.empty()) {
-        //current = openSet.top();
-        current = *openSet.begin();
-        cout << current.latitudeText << " " << current.longitudeText << endl;
+        GeoCoord current = openSet.top().second;
+        openSet.pop();
         if (current == end) {
-            // reconstruct path (cameFrom, current)
-            // success
-            cerr << "hi" << endl;
-            auto a = reconstructPath(cameFrom, current);
+            // done
+            reconstructPath(cameFrom, current, route, totalDistanceTravelled);
+            return DELIVERY_SUCCESS;
         }
 
-        //openSet.pop();
-        openSet.erase(openSet.begin());
-        // For each neighborh of current
-        vector<StreetSegment> segs;
-        m_sm->getSegmentsThatStartWith(current, segs);
+        closedSet.insert(current);
 
-        for (auto it = segs.begin(); it != segs.end(); it++) {
-            // d(current,neighbor) is the weight of the edge from current to neighbor
-            // tentative_gScore is the distance from start to the neighbor through current
-            double tentative_gScore = gScore[current] + distanceEarthMiles(current, it->end);
-            if (auto g = gScore.find(it->end) == gScore.end()) {
-                gScore[it->end] = DBL_MAX;
-            }
-            if (tentative_gScore < gScore[it->end]) { // fix this
-                cameFrom[it->end] = current;
-                gScore[it->end] = tentative_gScore;
-                fScore[it->end] = gScore[it->end] + h(it->end, end);
-                //openSet.push(it->end); // only if unique!
-                openSet.insert(it->end);
-            }
+        if (!m_sm->getSegmentsThatStartWith(current, neighbors))
+            return NO_ROUTE;
 
+        for (auto it = neighbors.begin(); it != neighbors.end(); it++) {
+            double cost = gScore[current] + getWeight(*it);
+            
+            if ((gScore.find(it->end) == gScore.end() && closedSet.find(it->end) == closedSet.end())
+                || cost < gScore[it->end]) {
+                // not in open or closed
+                gScore[it->end] = cost;
+                double priority = gScore[it->end] + h(it->end, end);
+                openSet.emplace(priority, it->end);
+                cameFrom[it->end] = *it;
+            }
         }
     }
 
-    // failure
-    return DELIVERY_SUCCESS;
+    return NO_ROUTE;
 }
 
 
