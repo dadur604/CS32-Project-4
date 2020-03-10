@@ -22,7 +22,7 @@ public:
     bool getSegmentsThatStartWith(const GeoCoord& gc, vector<StreetSegment>& segs) const;
 
 private:
-    ExpandableHashMap<GeoCoord, vector<StreetSegment*>> hashMap;
+    ExpandableHashMap<GeoCoord, vector<StreetSegment>> hashMap;
 };
 
 StreetMapImpl::StreetMapImpl()
@@ -71,30 +71,30 @@ bool StreetMapImpl::load(string mapFile)
             GeoCoord start(lat1, long1);
             GeoCoord end(lat2, long2);
 
-            vector<StreetSegment*>* connectedSegments;
+            vector<StreetSegment>* connectedSegments;
             if (! (connectedSegments = hashMap.find(start))) {
-                connectedSegments = &vector<StreetSegment*>();
+                connectedSegments = &vector<StreetSegment>();
                 hashMap.associate(start, *connectedSegments);
                 connectedSegments = hashMap.find(start);
             }
 
             // connectedSegments is the vector of Street Segments that maps to start
 
-            vector<StreetSegment*>::iterator it;
+            vector<StreetSegment>::iterator it;
 
-            StreetSegment* segment = new StreetSegment(start, end, name);
+            StreetSegment segment(start, end, name);
 
             connectedSegments->push_back(segment);
 
             // Reverse
 
             if (!(connectedSegments = hashMap.find(end))) {
-                connectedSegments = &vector<StreetSegment*>();
+                connectedSegments = &vector<StreetSegment>();
                 hashMap.associate(end, *connectedSegments);
                 connectedSegments = hashMap.find(end);
             }
 
-            StreetSegment* reverseSegment = new StreetSegment(end, start, name);
+            StreetSegment reverseSegment(end, start, name);
 
             connectedSegments->push_back(reverseSegment);
         }
@@ -105,14 +105,14 @@ bool StreetMapImpl::load(string mapFile)
 
 bool StreetMapImpl::getSegmentsThatStartWith(const GeoCoord& gc, vector<StreetSegment>& segs) const
 {
-    const vector<StreetSegment*>* foundSegments;
+    const vector<StreetSegment>* foundSegments;
     if (! (foundSegments = hashMap.find(gc))) {
         return false;
     }
 
     segs.clear();
     for (auto it = foundSegments->begin(); it != foundSegments->end(); it++) {
-        segs.push_back(**it);
+        segs.push_back(*it);
     }
 
     return true;

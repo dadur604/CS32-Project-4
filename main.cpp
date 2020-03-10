@@ -6,6 +6,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <Windows.h>
 using namespace std;
 
 bool loadDeliveryRequests(string deliveriesFile, GeoCoord& depot, vector<DeliveryRequest>& v);

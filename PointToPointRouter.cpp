@@ -43,6 +43,7 @@ private:
     void reconstructPath(unordered_map<GeoCoord, StreetSegment> cameFrom, GeoCoord end, list<StreetSegment>& path, double& totalDistance) const {
         totalDistance = 0;
         path.clear();
+        if (cameFrom.size() == 0) return;
         StreetSegment current = cameFrom[end];
         path.push_front(current);
         totalDistance += getWeight(current);
